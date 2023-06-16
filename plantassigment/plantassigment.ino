@@ -1,3 +1,12 @@
+#include <WiFi.h>
+#include <ThingsBoard.h>
+#define WIFI_SSID "Sog Wifi" // Replace with your network SSID
+#define WIFI_PASSWORD "1181102921" // Replace with your network password
+#define TOKEN "5vSjlvXudVNvgXKMvhhS" // Replace with your ThingsBoard device token
+#define THINGSBOARD_SERVER "demo.thingsboard.io"
+WiFiClient espClient;
+ThingsBoard tb(espClient);
+
 #include <NewPing.h>
 #include <DHT.h>
 
@@ -11,13 +20,13 @@ NewPing sonar(ULTRASONIC_TRIGGER_PIN, ULTRASONIC_ECHO_PIN, ULTRASONIC_MAX_DISTAN
 DHT dht(DHTPIN, DHTTYPE);
 
 #define MOISTURE_SENSOR_ANALOG_PIN 35
-
+String moistString = "";
 bool pumpState = false;
 
 #define RELAY_PIN 19
 #define TANK_BASE_AREA 176.714f
 #define TANK_HEIGHT 15.0f
-float AmountOfWaterToUse = 1000.0f;
+float AmountOfWaterToUse = 250.0f;
 float previousTankWaterLevel = 0.0f;
 
 #define BUZZER_PIN 18 // Buzzer
@@ -28,12 +37,28 @@ float tankWaterLevel;
 
 void setup() {
   Serial.begin(115200);
+
+   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  while (WiFi.status() != WL_CONNECTED) {
+  delay(500);
+  Serial.println("Connecting to WiFi...");
+  }
+  Serial.println("Connected to WiFi");
+
   dht.begin();
   pinMode(RELAY_PIN, OUTPUT);
   pinMode(BUZZER_PIN, OUTPUT); // Setup buzzer pin as output
 }
 
 void loop() {
+  if(!tb.connected()){
+
+  // Attempt to connect
+    while (!tb.connect(THINGSBOARD_SERVER, TOKEN)) {
+    Serial.print("Connecting to ThingsBoard node ...");
+    delay(5000);
+    }
+  }
   delay(2000);
 
   ultrasonicRead = sonar.ping_cm();
@@ -64,12 +89,17 @@ void loop() {
   if(moisturePercentage < 20) {
     Serial.print("Moisture: Dry, Value: ");
     Serial.println(moisturePercentage);
+    moistString = "Dry";
   } else if(moisturePercentage > 20 && moisturePercentage < 40 ) {
     Serial.print("Moisture: Moist, Value: ");
     Serial.println(moisturePercentage);
+    moistString = "Moist";
+
   } else if(moisturePercentage > 40 ) {
     Serial.print("Moisture: Wet, Value: ");
     Serial.println(moisturePercentage);
+    moistString = "Wet";
+
   }
 
   if((moisturePercentage < 20 && moisturePercentage > 2) && tankWaterLevel > AmountOfWaterToUse) {
@@ -100,4 +130,10 @@ void loop() {
   }
   Serial.print("Water Level: ");
   Serial.println(tankWaterLevel);
+   if (tb.connected()) {
+    tb.sendTelemetryFloat("Temperature", t);
+    tb.sendTelemetryFloat("Humidity", h );
+    tb.sendTelemetryFloat("Water Level", tankWaterLevel);
+    tb.sendTelemetryString("Moisture", moistString.c_str());
+    }
 }
