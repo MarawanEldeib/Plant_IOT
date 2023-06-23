@@ -1,4 +1,4 @@
-# Plant_IOT
+# RainRoot-IOT_watering_System
 
 System image:
 
