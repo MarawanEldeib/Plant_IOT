@@ -1,4 +1,4 @@
-# RainRoot-IOT_watering_System
+# RainRoot-IoT_watering_System
 
 System image:
 
